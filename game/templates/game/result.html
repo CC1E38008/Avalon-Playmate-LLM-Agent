@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚔️ 阿瓦隆 - 游戏结算</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #0a0e1a;
+            --gold: #c9a84c;
+            --gold-light: #f0d78c;
+            --gold-dark: #8b6914;
+            --good: #4caf50;
+            --good-light: #81c784;
+            --evil: #ef5350;
+            --evil-light: #ef9a9a;
+            --accent: #7c6ff7;
+            --surface: rgba(255,255,255,0.04);
+            --border: rgba(255,255,255,0.08);
+        }
+        * { box-sizing: border-box; }
+        body {
+            background: var(--bg-deep);
+            background-image:
+                radial-gradient(ellipse at 50% 20%, rgba(201,168,76,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 50% 80%, rgba(124,111,247,0.06) 0%, transparent 60%);
+            min-height: 100vh;
+            color: #d0d5e0;
+        }
+
+        /* ========== 胜利横幅 ========== */
+        .victory-banner {
+            text-align: center;
+            padding: 2.5rem 1rem 2rem;
+            position: relative;
+        }
+        .victory-icon {
+            font-size: 4rem;
+            display: block;
+            margin-bottom: 0.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+        @keyframes float {
+            0%,100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .victory-title {
+            font-size: clamp(2rem, 4vw, 2.8rem);
+            font-weight: 900;
+            letter-spacing: 0.03em;
+            margin-bottom: 0.3rem;
+        }
+        .victory-title.good {
+            background: linear-gradient(180deg, #a5d6a7, #4caf50, #2e7d32);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .victory-title.evil {
+            background: linear-gradient(180deg, #ef9a9a, #ef5350, #c62828);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .victory-subtitle {
+            color: rgba(255,255,255,0.4);
+            font-size: 0.9rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .victory-divider {
+            width: 60px; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            margin: 0.8rem auto;
+        }
+
+        /* ========== 卡片 ========== */
+        .result-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            margin-bottom: 18px;
+            overflow: hidden;
+            transition: border-color 0.3s;
+        }
+        .result-card:hover { border-color: rgba(255,255,255,0.12); }
+        .result-card .card-header {
+            background: linear-gradient(135deg, rgba(201,168,76,0.12), rgba(139,105,20,0.06));
+            border-bottom: 1px solid rgba(201,168,76,0.15);
+            padding: 0.8rem 1.2rem;
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--gold-light);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .result-card .card-body { padding: 1rem 1.2rem; }
+
+        /* ========== 暗杀结果 ========== */
+        .assassination-result {
+            text-align: center;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .assassination-result .guess-text {
+            font-size: 1.1rem;
+            color: rgba(255,255,255,0.6);
+        }
+        .assassination-result .guess-name {
+            font-weight: 800;
+            font-size: 1.3rem;
+        }
+
+        /* ========== 任务时间线 ========== */
+        .mission-timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        .mission-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            transition: background 0.3s;
+            position: relative;
+        }
+        .mission-row:hover { background: rgba(255,255,255,0.02); }
+        .mission-row + .mission-row {
+            border-top: 1px solid rgba(255,255,255,0.04);
+        }
+        .mission-circle {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+        .mission-circle.pass {
+            background: rgba(76,175,80,0.15);
+            border: 2px solid var(--good);
+            color: var(--good-light);
+            box-shadow: 0 0 15px rgba(76,175,80,0.2);
+        }
+        .mission-circle.fail {
+            background: rgba(244,67,54,0.15);
+            border: 2px solid var(--evil);
+            color: var(--evil-light);
+            box-shadow: 0 0 15px rgba(244,67,54,0.2);
+        }
+        .mission-detail { flex: 1; }
+        .mission-status {
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 2px;
+        }
+        .mission-status.pass { color: var(--good-light); }
+        .mission-status.fail { color: var(--evil-light); }
+        .mission-team-label {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.4);
+        }
+        .mission-votes-label {
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.3);
+            margin-top: 2px;
+        }
+
+        /* ========== 玩家表格 ========== */
+        .players-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .players-table th {
+            text-align: left;
+            padding: 6px 10px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: rgba(255,255,255,0.3);
+            border-bottom: 1px solid var(--border);
+        }
+        .players-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            font-size: 0.82rem;
+        }
+        .players-table tr:hover td {
+            background: rgba(255,255,255,0.02);
+        }
+        .player-name-cell {
+            font-weight: 700;
+            color: rgba(255,255,255,0.8);
+        }
+        .player-name-cell.human { color: #b3a7ff; }
+        .role-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.78rem;
+        }
+        .role-badge.good { background: rgba(76,175,80,0.12); border: 1px solid rgba(76,175,80,0.25); color: var(--good-light); }
+        .role-badge.evil { background: rgba(244,67,54,0.12); border: 1px solid rgba(244,67,54,0.25); color: var(--evil-light); }
+        .team-indicator {
+            font-size: 0.78rem;
+            font-weight: 600;
+        }
+        .team-indicator.good { color: var(--good-light); }
+        .team-indicator.evil { color: var(--evil-light); }
+        .llm-cell {
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.4);
+        }
+        .human-tag {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 8px;
+            background: rgba(124,111,247,0.2);
+            color: #b3a7ff;
+            font-size: 0.65rem;
+            font-weight: 700;
+            margin-left: 4px;
+        }
+
+        /* ========== LLM 统计卡片 ========== */
+        .llm-stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+        }
+        .llm-stat-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 1rem;
+            text-align: center;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        .llm-stat-card:hover {
+            border-color: rgba(201,168,76,0.25);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            transform: translateY(-2px);
+        }
+        .llm-stat-card .llm-icon {
+            font-size: 1.5rem;
+            margin-bottom: 4px;
+        }
+        .llm-stat-card .llm-name {
+            font-weight: 700;
+            color: var(--gold-light);
+            font-size: 0.9rem;
+            margin-bottom: 2px;
+        }
+        .llm-stat-card .llm-model {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.35);
+            margin-bottom: 8px;
+        }
+        .llm-stat-card .win-rate {
+            font-size: 2.2rem;
+            font-weight: 900;
+            line-height: 1;
+        }
+        .win-rate.high { color: #66bb6a; }
+        .win-rate.mid { color: #ffb74d; }
+        .win-rate.low { color: #ef5350; }
+        .win-rate-label {
+            font-size: 0.65rem;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-top: 2px;
+        }
+        .llm-stat-card .players-list {
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.5);
+            margin-top: 6px;
+        }
+        .llm-stat-card .wins-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 8px;
+            background: rgba(201,168,76,0.12);
+            color: var(--gold-light);
+            font-weight: 600;
+            font-size: 0.72rem;
+            margin-top: 4px;
+        }
+
+        /* 进度条版本 */
+        .rate-bar-container {
+            margin-top: 6px;
+            position: relative;
+            height: 6px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .rate-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.8s ease;
+        }
+        .rate-bar-fill.high { background: linear-gradient(90deg, #4caf50, #66bb6a); }
+        .rate-bar-fill.mid { background: linear-gradient(90deg, #f57c00, #ffb74d); }
+        .rate-bar-fill.low { background: linear-gradient(90deg, #c62828, #ef5350); }
+
+        /* ========== 底部 ========== */
+        .footer-section {
+            text-align: center;
+            padding: 1.5rem;
+            border-top: 1px solid var(--border);
+            margin-top: 1rem;
+        }
+        .countdown-timer {
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            color: rgba(255,255,255,0.3);
+            margin: 8px 0;
+        }
+        .log-note {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.25);
+            margin-top: 6px;
+        }
+        .btn-new-game {
+            display: inline-block;
+            padding: 8px 24px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(201,168,76,0.2), rgba(139,105,20,0.1));
+            border: 1px solid rgba(201,168,76,0.3);
+            color: var(--gold-light);
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        .btn-new-game:hover {
+            background: linear-gradient(135deg, rgba(201,168,76,0.35), rgba(139,105,20,0.2));
+            border-color: var(--gold);
+            color: var(--gold-light);
+            box-shadow: 0 4px 20px rgba(201,168,76,0.2);
+        }
+
+        /* 动画 */
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .result-card { animation: fadeUp 0.5s ease forwards; }
+        .result-card:nth-child(2) { animation-delay: 0.1s; }
+        .result-card:nth-child(3) { animation-delay: 0.2s; }
+        .result-card:nth-child(4) { animation-delay: 0.3s; }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<div class="container py-4" style="max-width: 800px;" id="app">
+    <div class="text-center py-5">
+        <div class="spinner-border" style="color:var(--gold);width:3rem;height:3rem;" role="status"></div>
+        <p class="mt-3" style="color:rgba(255,255,255,0.3);">加载游戏结果...</p>
+    </div>
+</div>
+
+<script>
+const GAME_ID = '{{ game_id }}';
+
+async function loadResult() {
+    try {
+        const resp = await fetch('/api/game/' + GAME_ID + '/result/');
+        const r = await resp.json();
+        render(r);
+    } catch(e) {
+        document.getElementById('app').innerHTML =
+            `<div class="alert" style="background:rgba(244,67,54,0.1);border:1px solid rgba(244,67,54,0.3);color:var(--evil-light);border-radius:12px;text-align:center;padding:2rem;">
+                <i class="bi bi-exclamation-triangle-fill" style="font-size:2rem;display:block;margin-bottom:0.5rem;"></i>
+                加载失败: ${e.message}
+            </div>`;
+    }
+}
+
+function render(r) {
+    const isGood = r.winner === 'good';
+    const winCls = isGood ? 'good' : 'evil';
+    const icon = isGood ? '🛡️' : '💀';
+    const title = isGood ? '好人阵营获胜！' : '坏人阵营获胜！';
+
+    let html = '';
+
+    // ═══ 胜利横幅 ═══
+    html += `<div class="victory-banner">
+        <span class="victory-icon">${icon}</span>
+        <h1 class="victory-title ${winCls}">${title}</h1>
+        <p class="victory-subtitle">GAME OVER</p>
+        <div class="victory-divider"></div>
+    </div>`;
+
+    // ═══ 暗杀结果 ═══
+    if (r.assassin_guess) {
+        const correct = r.assassin_correct;
+        html += `<div class="assassination-result">
+            <div class="guess-text">
+                刺客猜测梅林是
+                <span class="guess-name" style="color:${correct ? 'var(--evil)' : 'var(--good-light)'};">${r.assassin_guess}</span>
+                ——
+                <span style="font-weight:700;color:${correct ? 'var(--evil)' : 'var(--good-light)'};">
+                    ${correct ? '猜中了！' : '猜错了！'}
+                </span>
+            </div>
+        </div>`;
+    }
+
+    // ═══ 任务记录 ═══
+    html += `<div class="result-card">
+        <div class="card-header"><i class="bi bi-flag-fill"></i>任务记录</div>
+        <div class="card-body p-0">
+            <div class="mission-timeline">`;
+
+    if (r.mission_results && r.mission_results.length) {
+        r.mission_results.forEach(m => {
+            const passCls = m.passed ? 'pass' : 'fail';
+            const icon = m.passed ? '✓' : '✗';
+            const label = m.passed ? '任务成功' : '任务失败';
+            html += `<div class="mission-row">
+                <div class="mission-circle ${passCls}">${m.mission}</div>
+                <div class="mission-detail">
+                    <div class="mission-status ${passCls}">${icon} ${label}</div>
+                    <div class="mission-team-label">队伍: ${(m.team||[]).join(', ')}</div>
+                    <div class="mission-votes-label">成功 ${m.success} 票 · 失败 ${m.fail} 票</div>
+                </div>
+            </div>`;
+        });
+    } else {
+        html += '<div class="p-3" style="color:rgba(255,255,255,0.3);text-align:center;">无任务记录</div>';
+    }
+    html += '</div></div></div>';
+
+    // ═══ 玩家揭晓 ═══
+    html += `<div class="result-card">
+        <div class="card-header"><i class="bi bi-people-fill"></i>身份揭晓</div>
+        <div class="card-body p-0">
+            <table class="players-table">
+                <thead><tr><th>玩家</th><th>角色</th><th>阵营</th><th>大模型</th></tr></thead>
+                <tbody>`;
+
+    if (r.players) {
+        r.players.forEach(p => {
+            const teamCls = p.team === 'good' ? 'good' : 'evil';
+            const teamIcon = p.team === 'good' ? '🛡️' : '💀';
+            const humanCls = p.is_human ? ' human' : '';
+            const humanTag = p.is_human ? '<span class="human-tag">你</span>' : '';
+            html += `<tr>
+                <td class="player-name-cell${humanCls}">${p.name}${humanTag}</td>
+                <td><span class="role-badge ${teamCls}">${p.role_name}</span></td>
+                <td><span class="team-indicator ${teamCls}">${teamIcon} ${p.team === 'good' ? '好人' : '坏人'}</span></td>
+                <td class="llm-cell">${p.llm_name} <small style="color:rgba(255,255,255,0.2);">${p.llm_model}</small></td>
+            </tr>`;
+        });
+    }
+    html += '</tbody></table></div></div>';
+
+    // ═══ LLM 统计 ═══
+    html += `<div class="result-card">
+        <div class="card-header"><i class="bi bi-bar-chart-fill"></i>大模型胜率统计</div>
+        <div class="card-body">
+            <div class="llm-stat-grid">`;
+
+    if (r.llm_stats) {
+        Object.values(r.llm_stats).forEach(s => {
+            const rate = s.win_rate;
+            let rateCls = 'low';
+            if (rate >= 0.7) rateCls = 'high';
+            else if (rate >= 0.4) rateCls = 'mid';
+
+            html += `<div class="llm-stat-card">
+                <div class="llm-icon">🤖</div>
+                <div class="llm-name">${s.name}</div>
+                <div class="llm-model">${s.model}</div>
+                <div class="win-rate ${rateCls}">${(rate*100).toFixed(1)}%</div>
+                <div class="win-rate-label">胜率</div>
+                <div class="rate-bar-container">
+                    <div class="rate-bar-fill ${rateCls}" style="width:${rate*100}%;"></div>
+                </div>
+                <div class="players-list">控制: ${(s.players||[]).join(', ')}</div>
+                <span class="wins-badge">${s.wins}/${s.total_players} 胜</span>
+            </div>`;
+        });
+    }
+    html += `</div>
+            <div style="font-size:0.7rem;color:rgba(255,255,255,0.25);margin-top:10px;">
+                * 胜率 = 该模型控制的玩家中，在获胜阵营的占比
+            </div>
+        </div>
+    </div>`;
+
+    // ═══ 底部 ═══
+    html += `<div class="footer-section">
+        <a href="/" class="btn-new-game"><i class="bi bi-arrow-repeat me-1"></i>开始新游戏</a>
+        <div class="countdown-timer" id="countdown">24:00:00</div>
+        <div class="log-note"><i class="bi bi-file-text me-1"></i>结果已保存至 game_results_of_LLM.log</div>
+        <div class="log-note mt-1">页面不会自动关闭，你可以手动离开</div>
+    </div>`;
+
+    document.getElementById('app').innerHTML = html;
+
+    // 倒计时 (86400秒 = 24小时)
+    let remaining = 86400;
+    const timerEl = document.getElementById('countdown');
+    setInterval(() => {
+        remaining--;
+        if (remaining <= 0) { timerEl.textContent = '00:00:00'; return; }
+        const h = Math.floor(remaining / 3600);
+        const m = Math.floor((remaining % 3600) / 60);
+        const s = remaining % 60;
+        timerEl.textContent =
+            String(h).padStart(2,'0') + ':' +
+            String(m).padStart(2,'0') + ':' +
+            String(s).padStart(2,'0');
+        timerEl.setAttribute('title', '剩余时间');
+    }, 1000);
+
+    // 延迟动画触发进度条
+    setTimeout(() => {
+        document.querySelectorAll('.rate-bar-fill').forEach(bar => {
+            bar.style.transition = 'width 1s cubic-bezier(0.4, 0, 0.2, 1)';
+        });
+    }, 400);
+}
+
+loadResult();
+</script>
+</body>
+</html>

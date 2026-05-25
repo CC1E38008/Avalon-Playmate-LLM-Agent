@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚔️ 阿瓦隆 - 游戏设置</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #0a0e1a;
+            --bg-card: rgba(255,255,255,0.04);
+            --border-subtle: rgba(255,255,255,0.06);
+            --gold: #c9a84c;
+            --gold-light: #f0d78c;
+            --gold-dark: #8b6914;
+            --good: #4caf50;
+            --evil: #ef5350;
+            --accent: #7c6ff7;
+        }
+        * { box-sizing: border-box; }
+        body {
+            background: var(--bg-deep);
+            background-image:
+                radial-gradient(ellipse at 20% 20%, rgba(124,111,247,0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(201,168,76,0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(15,25,60,1) 0%, var(--bg-deep) 100%);
+            min-height: 100vh;
+            color: #d0d5e0;
+        }
+
+        /* 标题区域 */
+        .hero-section {
+            text-align: center;
+            padding: 2rem 1rem 1rem;
+            position: relative;
+        }
+        .hero-title {
+            font-size: clamp(2.2rem, 5vw, 3.8rem);
+            font-weight: 900;
+            letter-spacing: 0.05em;
+            background: linear-gradient(180deg, var(--gold-light) 0%, var(--gold) 40%, var(--gold-dark) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 2px 8px rgba(201,168,76,0.3));
+            margin-bottom: 0.3rem;
+        }
+        .hero-subtitle {
+            color: rgba(255,255,255,0.45);
+            font-size: 1rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .hero-divider {
+            width: 80px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            margin: 1rem auto;
+        }
+
+        /* 卡片 */
+        .glass-card {
+            background: rgba(255,255,255,0.03);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        .glass-card:hover {
+            border-color: rgba(201,168,76,0.3);
+            box-shadow: 0 12px 50px rgba(0,0,0,0.4), 0 0 30px rgba(201,168,76,0.05);
+        }
+        .glass-card .card-header {
+            background: linear-gradient(135deg, rgba(201,168,76,0.2), rgba(139,105,20,0.15));
+            border-bottom: 1px solid rgba(201,168,76,0.2);
+            padding: 1rem 1.5rem;
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: var(--gold-light);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .glass-card .card-body {
+            padding: 1.5rem;
+        }
+
+        /* 输入框 */
+        .form-control-custom {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            color: #e0e0e0;
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+            transition: all 0.25s ease;
+        }
+        .form-control-custom:focus {
+            background: rgba(255,255,255,0.08);
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(201,168,76,0.12), 0 0 20px rgba(201,168,76,0.06);
+            color: #fff;
+            outline: none;
+        }
+        .form-control-custom::placeholder {
+            color: rgba(255,255,255,0.25);
+        }
+        .form-label-custom {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.4rem;
+        }
+
+        /* 大模型数量输入 */
+        .llm-count-input {
+            width: 100px;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--gold-light) !important;
+            background: rgba(201,168,76,0.08) !important;
+            border: 2px solid rgba(201,168,76,0.3) !important;
+            border-radius: 12px !important;
+        }
+        .llm-count-input:focus {
+            border-color: var(--gold) !important;
+            box-shadow: 0 0 0 4px rgba(201,168,76,0.15) !important;
+        }
+        .llm-count-hint {
+            color: rgba(255,255,255,0.35);
+            font-size: 0.82rem;
+            line-height: 1.6;
+        }
+
+        /* LLM 配置卡片 */
+        .llm-config-card {
+            background: rgba(255,255,255,0.025);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px;
+            padding: 1.2rem;
+            margin-bottom: 0.8rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .llm-config-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--gold), var(--accent));
+            border-radius: 2px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .llm-config-card:hover::before {
+            opacity: 1;
+        }
+        .llm-config-card:hover {
+            border-color: rgba(201,168,76,0.2);
+            background: rgba(255,255,255,0.04);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .llm-config-title {
+            font-weight: 700;
+            color: var(--gold-light);
+            font-size: 0.95rem;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .llm-number-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+            color: #fff;
+            font-weight: 800;
+            font-size: 0.8rem;
+            box-shadow: 0 2px 8px rgba(201,168,76,0.3);
+        }
+
+        /* 按钮 */
+        .btn-gold {
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+            border: none;
+            color: #fff;
+            font-weight: 700;
+            padding: 0.7rem 2.5rem;
+            border-radius: 10px;
+            font-size: 1rem;
+            letter-spacing: 0.02em;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-gold:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(201,168,76,0.35);
+            color: #fff;
+        }
+        .btn-gold:active {
+            transform: translateY(0);
+            box-shadow: 0 4px 15px rgba(201,168,76,0.25);
+        }
+        .btn-gold:disabled {
+            background: rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.3);
+            transform: none;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+        .btn-outline-gold {
+            border: 1.5px solid rgba(201,168,76,0.5);
+            color: var(--gold-light);
+            background: transparent;
+            font-weight: 600;
+            padding: 0.6rem 1.5rem;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        .btn-outline-gold:hover {
+            background: rgba(201,168,76,0.12);
+            border-color: var(--gold);
+            color: var(--gold-light);
+            box-shadow: 0 4px 15px rgba(201,168,76,0.15);
+        }
+
+        /* 角色说明 */
+        .role-pill {
+            display: inline-block;
+            padding: 0.25rem 0.7rem;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            margin: 0.15rem 0.25rem;
+        }
+        .role-pill.good {
+            background: rgba(76,175,80,0.15);
+            border: 1px solid rgba(76,175,80,0.3);
+            color: #81c784;
+        }
+        .role-pill.evil {
+            background: rgba(244,67,54,0.15);
+            border: 1px solid rgba(244,67,54,0.3);
+            color: #ef9a9a;
+        }
+        .role-info-icon {
+            font-size: 1.2rem;
+            width: 24px;
+            text-align: center;
+        }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+        /* 过渡动画 */
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .llm-config-card {
+            animation: fadeSlideIn 0.4s ease forwards;
+        }
+        .llm-config-card:nth-child(1) { animation-delay: 0s; }
+        .llm-config-card:nth-child(2) { animation-delay: 0.05s; }
+        .llm-config-card:nth-child(3) { animation-delay: 0.1s; }
+        .llm-config-card:nth-child(4) { animation-delay: 0.15s; }
+        .llm-config-card:nth-child(5) { animation-delay: 0.2s; }
+        .llm-config-card:nth-child(6) { animation-delay: 0.25s; }
+        .llm-config-card:nth-child(7) { animation-delay: 0.3s; }
+        .llm-config-card:nth-child(8) { animation-delay: 0.35s; }
+        .llm-config-card:nth-child(9) { animation-delay: 0.4s; }
+
+        @keyframes glow {
+            0%,100% { box-shadow: 0 0 5px rgba(201,168,76,0.2); }
+            50% { box-shadow: 0 0 20px rgba(201,168,76,0.4); }
+        }
+        .btn-gold:not(:disabled) {
+            animation: glow 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container py-4" style="max-width: 800px;">
+    <!-- Hero -->
+    <div class="hero-section">
+        <h1 class="hero-title">⚔️ 阿 瓦 隆</h1>
+        <p class="hero-subtitle">AI 大模型桌游对战</p>
+        <div class="hero-divider"></div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger bg-danger bg-opacity-10 border-danger border-opacity-25 rounded-3">
+        <i class="bi bi-exclamation-triangle me-2"></i>{{ error }}
+    </div>
+    {% endif %}
+
+    <!-- 设置卡片 -->
+    <div class="glass-card mb-4">
+        <div class="card-header">
+            <i class="bi bi-gear-fill"></i> 游戏配置
+        </div>
+        <div class="card-body">
+            <form id="setup-form">
+                <div class="mb-4">
+                    <label class="form-label-custom">🤖 参与的大模型数量</label>
+                    <div class="d-flex align-items-center gap-3">
+                        <input type="number" class="form-control form-control-custom llm-count-input" id="llm-count"
+                               min="1" max="9" value="3">
+                        <span class="llm-count-hint">
+                            最多 <strong style="color:var(--gold-light)">9</strong> 个模型<br>
+                            AI 玩家将随机分配使用
+                        </span>
+                    </div>
+                </div>
+
+                <div id="llm-configs"></div>
+
+                <div class="d-flex justify-content-center gap-3 mt-4 pt-3" style="border-top: 1px solid var(--border-subtle);">
+                    <button type="button" class="btn btn-outline-gold" id="btn-generate">
+                        <i class="bi bi-arrow-repeat me-1"></i> 生成配置
+                    </button>
+                    <button type="submit" class="btn btn-gold" id="btn-start" disabled>
+                        <i class="bi bi-play-fill me-1"></i> 开始游戏
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 角色配置说明 -->
+    <div class="glass-card">
+        <div class="card-header">
+            <i class="bi bi-people-fill"></i> 10人局角色配置
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="p-3 rounded-3" style="background:rgba(76,175,80,0.05);border:1px solid rgba(76,175,80,0.1);">
+                        <h6 class="mb-3" style="color:#81c784;">
+                            <i class="bi bi-shield-fill-check me-1"></i> 🛡️ 好人阵营 · 6人
+                        </h6>
+                        <div class="mb-2">
+                            <span class="role-pill good"><span class="role-info-icon">🔮</span>梅林</span>
+                            <small style="color:rgba(255,255,255,0.4)">知道所有坏人（除莫德雷德）</small>
+                        </div>
+                        <div class="mb-2">
+                            <span class="role-pill good"><span class="role-info-icon">👁️</span>派西维尔</span>
+                            <small style="color:rgba(255,255,255,0.4)">知道梅林和莫甘娜（但分不清）</small>
+                        </div>
+                        <div>
+                            <span class="role-pill good"><span class="role-info-icon">🛡️</span>忠臣 ×4</span>
+                            <small style="color:rgba(255,255,255,0.4)">无特殊信息</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="p-3 rounded-3" style="background:rgba(244,67,54,0.05);border:1px solid rgba(244,67,54,0.1);">
+                        <h6 class="mb-3" style="color:#ef9a9a;">
+                            <i class="bi bi-shield-fill-x me-1"></i> 💀 坏人阵营 · 4人
+                        </h6>
+                        <div class="mb-2">
+                            <span class="role-pill evil">🎭 莫甘娜</span>
+                            <small style="color:rgba(255,255,255,0.4)">伪装梅林迷惑派西维尔</small>
+                        </div>
+                        <div class="mb-2">
+                            <span class="role-pill evil">🗡️ 刺客</span>
+                            <small style="color:rgba(255,255,255,0.4)">暗杀梅林翻盘</small>
+                        </div>
+                        <div class="mb-2">
+                            <span class="role-pill evil">🕶️ 莫德雷德</span>
+                            <small style="color:rgba(255,255,255,0.4)">梅林看不到他</small>
+                        </div>
+                        <div>
+                            <span class="role-pill evil">❓ 奥伯伦</span>
+                            <small style="color:rgba(255,255,255,0.4)">孤立坏人，互不知道</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('llm-count').addEventListener('change', function() {
+    document.getElementById('btn-start').disabled = true;
+    document.getElementById('llm-configs').innerHTML = '';
+});
+
+document.getElementById('btn-generate').addEventListener('click', function() {
+    const count = parseInt(document.getElementById('llm-count').value);
+    if (count < 1 || count > 9) {
+        showToast('请输入 1-9 之间的大模型数量');
+        return;
+    }
+    generateConfigForms(count);
+    document.getElementById('btn-start').disabled = false;
+});
+
+function generateConfigForms(count) {
+    const container = document.getElementById('llm-configs');
+    const modelNames = ['Qwen3', 'DeepSeek V4', 'GPT-4o', 'Claude 3.5', 'Gemini', 'Llama 3', 'Mistral', 'Yi', 'GLM-4'];
+    const placeholderEndpoints = [
+        'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        'https://api.deepseek.com/v1',
+        'https://api.openai.com/v1',
+        'https://api.anthropic.com/v1',
+        'https://generativelanguage.googleapis.com/v1',
+        'https://api.openai.com/v1',
+        'https://api.mistral.ai/v1',
+        'https://api.openai.com/v1',
+        'https://open.bigmodel.cn/api/paas/v4'
+    ];
+    const placeholderModels = [
+        'qwen-plus', 'deepseek-chat', 'gpt-4o', 'claude-3-5-sonnet',
+        'gemini-pro', 'llama-3-8b', 'mistral-small', 'yi-large', 'glm-4'
+    ];
+
+    let html = '';
+    for (let i = 0; i < count; i++) {
+        html += `
+        <div class="llm-config-card">
+            <div class="llm-config-title">
+                <span class="llm-number-badge">${i + 1}</span>
+                ${modelNames[i]}
+            </div>
+            <div class="row g-2">
+                <div class="col-md-3">
+                    <label class="form-label-custom">模型名称</label>
+                    <input type="text" class="form-control form-control-custom llm-name"
+                           placeholder="如: ${modelNames[i]}" value="${modelNames[i]}" required>
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label-custom">API 地址</label>
+                    <input type="text" class="form-control form-control-custom llm-endpoint"
+                           placeholder="${placeholderEndpoints[i]}" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label-custom">模型标识</label>
+                    <input type="text" class="form-control form-control-custom llm-model"
+                           placeholder="${placeholderModels[i]}" required>
+                </div>
+            </div>
+            <div class="mt-2">
+                <label class="form-label-custom">API Key</label>
+                <div class="input-group">
+                    <input type="password" class="form-control form-control-custom llm-api-key"
+                           placeholder="sk-..." required>
+                    <button class="btn btn-outline-gold" type="button"
+                            onclick="toggleKey(this)" style="border-radius: 0 10px 10px 0;">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="llm-status mt-2 small" style="display:none;"></div>
+        </div>`;
+    }
+    container.innerHTML = html;
+}
+
+function toggleKey(btn) {
+    const input = btn.parentElement.querySelector('input');
+    const icon = btn.querySelector('i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'bi bi-eye-slash';
+    } else {
+        input.type = 'password';
+        icon.className = 'bi bi-eye';
+    }
+}
+
+function showToast(msg) {
+    const toast = document.createElement('div');
+    toast.className = 'alert alert-warning position-fixed top-0 start-50 translate-middle-x mt-3';
+    toast.style.cssText = 'z-index:9999;background:rgba(255,152,0,0.2);border:1px solid rgba(255,152,0,0.3);color:#ffb74d;border-radius:10px;padding:0.6rem 1.5rem;animation:fadeSlideIn 0.3s ease;';
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; }, 2500);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// 默认3个
+generateConfigForms(3);
+document.getElementById('btn-start').disabled = false;
+
+document.getElementById('setup-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const count = parseInt(document.getElementById('llm-count').value);
+    const configs = [];
+    const names = document.querySelectorAll('.llm-name');
+    const endpoints = document.querySelectorAll('.llm-endpoint');
+    const models = document.querySelectorAll('.llm-model');
+    const apiKeys = document.querySelectorAll('.llm-api-key');
+
+    for (let i = 0; i < count; i++) {
+        const cfg = {
+            name: names[i].value.trim(),
+            endpoint: endpoints[i].value.trim(),
+            model: models[i].value.trim(),
+            api_key: apiKeys[i].value.trim(),
+        };
+        if (!cfg.name || !cfg.endpoint || !cfg.model || !cfg.api_key) {
+            showToast(`请完整填写大模型 #${i + 1} 的所有字段`);
+            return;
+        }
+        configs.push(cfg);
+    }
+
+    const btn = document.getElementById('btn-start');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>创建游戏中...';
+
+    try {
+        const resp = await fetch('/setup/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({llm_count: count, llm_configs: configs}),
+        });
+        const data = await resp.json();
+        if (data.game_id) {
+            window.location.href = '/game/' + data.game_id + '/';
+        } else {
+            showToast('创建失败: ' + (data.error || '未知错误'));
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-play-fill me-1"></i> 开始游戏';
+        }
+    } catch (err) {
+        showToast('请求失败: ' + err.message);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-play-fill me-1"></i> 开始游戏';
+    }
+});
+</script>
+</body>
+</html>

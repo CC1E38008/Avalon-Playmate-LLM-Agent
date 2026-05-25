@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚔️ 阿瓦隆 - 游戏中</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #0a0e1a;
+            --gold: #c9a84c;
+            --gold-light: #f0d78c;
+            --gold-dark: #8b6914;
+            --good: #4caf50;
+            --good-light: #81c784;
+            --evil: #ef5350;
+            --evil-light: #ef9a9a;
+            --accent: #7c6ff7;
+            --surface: rgba(255,255,255,0.04);
+            --border: rgba(255,255,255,0.08);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg-deep);
+            background-image:
+                radial-gradient(ellipse at 30% 10%, rgba(124,111,247,0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 90%, rgba(201,168,76,0.05) 0%, transparent 50%);
+            min-height: 100vh;
+            color: #d0d5e0;
+            font-size: 14px;
+            overflow: hidden;
+        }
+
+        /* ========== 顶部 LLM 状态栏 ========== */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            flex-wrap: wrap;
+        }
+        .status-bar-label {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.4);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            white-space: nowrap;
+        }
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+        .status-chip.online {
+            border-color: rgba(76,175,80,0.3);
+            background: rgba(76,175,80,0.08);
+        }
+        .status-chip.error {
+            border-color: rgba(244,67,54,0.3);
+            background: rgba(244,67,54,0.08);
+        }
+        .status-chip.checking {
+            border-color: rgba(255,152,0,0.3);
+            background: rgba(255,152,0,0.08);
+        }
+        .status-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+        .dot-online { background: var(--good); box-shadow: 0 0 6px rgba(76,175,80,0.5); }
+        .dot-error { background: var(--evil); box-shadow: 0 0 6px rgba(244,67,54,0.5); }
+        .dot-checking { background: #ff9800; box-shadow: 0 0 6px rgba(255,152,0,0.5); animation: pulse 0.8s infinite; }
+        .dot-unknown { background: #555; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        /* ========== 主布局 ========== */
+        .game-layout {
+            display: flex;
+            height: calc(100vh - 42px);
+        }
+        .sidebar {
+            width: 290px;
+            min-width: 290px;
+            border-right: 1px solid var(--border);
+            background: rgba(0,0,0,0.25);
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .main-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .log-panel {
+            flex: 1;
+            overflow-y: auto;
+            padding: 14px 18px;
+        }
+        .action-panel {
+            border-top: 1px solid var(--border);
+            padding: 14px 18px;
+            background: rgba(0,0,0,0.2);
+            min-height: 70px;
+        }
+
+        /* ========== 侧边栏卡片 ========== */
+        .info-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            transition: border-color 0.3s;
+        }
+        .info-box:hover { border-color: rgba(255,255,255,0.12); }
+        .info-box-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: rgba(255,255,255,0.35);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .info-box-title i { font-size: 0.8rem; color: var(--gold); }
+
+        /* 角色身份 */
+        .identity-card {
+            background: linear-gradient(135deg, rgba(201,168,76,0.08), rgba(139,105,20,0.04));
+            border: 1px solid rgba(201,168,76,0.2) !important;
+        }
+        .identity-name {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: var(--gold-light);
+        }
+        .identity-role {
+            display: inline-block;
+            padding: 3px 12px;
+            border-radius: 15px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+        .identity-role.good { background: rgba(76,175,80,0.15); color: var(--good-light); border: 1px solid rgba(76,175,80,0.3); }
+        .identity-role.evil { background: rgba(244,67,54,0.15); color: var(--evil-light); border: 1px solid rgba(244,67,54,0.3); }
+        .alive-badge {
+            display: inline-block;
+            font-size: 0.75rem;
+            padding: 2px 10px;
+            border-radius: 12px;
+            margin-left: 6px;
+        }
+        .alive-badge.live { background: rgba(76,175,80,0.12); color: var(--good-light); }
+        .alive-badge.dead { background: rgba(244,67,54,0.12); color: var(--evil-light); }
+
+        /* 视野标签 */
+        .vision-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.72rem;
+            margin: 2px;
+            font-weight: 600;
+        }
+        .vision-tag.evil-tag { background: rgba(244,67,54,0.12); border: 1px solid rgba(244,67,54,0.25); color: var(--evil-light); }
+        .vision-tag.good-tag { background: rgba(76,175,80,0.12); border: 1px solid rgba(76,175,80,0.25); color: var(--good-light); }
+        .vision-tag.candidate-tag { background: rgba(255,152,0,0.12); border: 1px solid rgba(255,152,0,0.25); color: #ffb74d; }
+
+        /* 存活玩家列表 */
+        .alive-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .alive-dot {
+            width: 28px; height: 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.68rem;
+            font-weight: 700;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.7);
+            transition: all 0.3s;
+        }
+        .alive-dot.leader {
+            border-color: var(--gold) !important;
+            box-shadow: 0 0 8px rgba(201,168,76,0.3);
+            color: var(--gold-light);
+        }
+        .alive-dot.human {
+            border-color: var(--accent) !important;
+            box-shadow: 0 0 8px rgba(124,111,247,0.3);
+            color: #b3a7ff;
+        }
+
+        /* ========== 任务追踪器 ========== */
+        .mission-tracker {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+        }
+        .mission-node {
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 800;
+            transition: all 0.4s;
+            position: relative;
+        }
+        .mission-node.pass {
+            border-color: var(--good);
+            background: rgba(76,175,80,0.12);
+            color: var(--good-light);
+            animation: popIn 0.4s ease;
+        }
+        .mission-node.fail {
+            border-color: var(--evil);
+            background: rgba(244,67,54,0.12);
+            color: var(--evil-light);
+            animation: popIn 0.4s ease;
+        }
+        .mission-node.pass::after {
+            content: '✓';
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            font-size: 0.55rem;
+            color: var(--good);
+            font-weight: 900;
+        }
+        .mission-node.fail::after {
+            content: '✗';
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            font-size: 0.55rem;
+            color: var(--evil);
+            font-weight: 900;
+        }
+        @keyframes popIn {
+            0% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+
+        /* ========== 日志区 ========== */
+        .log-entry {
+            padding: 6px 0;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+        .log-time { color: rgba(255,255,255,0.25); font-size: 0.7rem; margin-right: 6px; font-family: monospace; }
+        .log-system { color: rgba(255,255,255,0.45); }
+        .log-important { color: var(--gold-light); font-weight: 600; }
+
+        /* 发言气泡 */
+        .speech-block {
+            margin: 8px 0;
+            animation: slideIn 0.35s ease;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .speech-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 3px;
+        }
+        .speech-avatar {
+            width: 24px; height: 24px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            font-weight: 800;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .speech-avatar.human { background: var(--accent); }
+        .speech-avatar.ai { background: rgba(255,255,255,0.12); }
+        .speech-name {
+            font-weight: 700;
+            font-size: 0.82rem;
+        }
+        .speech-name.human { color: #b3a7ff; }
+        .speech-name.ai { color: rgba(255,255,255,0.7); }
+        .speech-bubble {
+            background: rgba(255,255,255,0.04);
+            border-left: 3px solid var(--gold);
+            border-radius: 0 10px 10px 10px;
+            padding: 8px 12px;
+            margin-left: 30px;
+            color: #c0c5d0;
+            font-size: 0.84rem;
+            line-height: 1.5;
+        }
+        .speech-bubble.human-bubble {
+            border-left-color: var(--accent);
+            background: rgba(124,111,247,0.06);
+        }
+
+        /* 投票区域 */
+        .vote-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin: 6px 0;
+            padding: 8px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        .vote-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+        .vote-chip.yes { background: rgba(76,175,80,0.12); color: var(--good-light); }
+        .vote-chip.no { background: rgba(244,67,54,0.12); color: var(--evil-light); }
+
+        .section-label {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: rgba(255,255,255,0.35);
+            margin: 8px 0 4px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        /* ========== 操作面板 ========== */
+        .action-prompt {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--gold-light);
+            margin-bottom: 10px;
+        }
+        .btn-action {
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-speak {
+            background: linear-gradient(135deg, #7c6ff7, #5c4fcf);
+            border: none;
+            color: #fff;
+        }
+        .btn-speak:hover { box-shadow: 0 4px 20px rgba(124,111,247,0.4); transform: translateY(-1px); color:#fff; }
+        .btn-success-custom {
+            background: linear-gradient(135deg, #43a047, #2e7d32);
+            border: none;
+            color: #fff;
+        }
+        .btn-success-custom:hover { box-shadow: 0 4px 20px rgba(76,175,80,0.4); transform: translateY(-1px); color:#fff; }
+        .btn-danger-custom {
+            background: linear-gradient(135deg, #e53935, #c62828);
+            border: none;
+            color: #fff;
+        }
+        .btn-danger-custom:hover { box-shadow: 0 4px 20px rgba(244,67,54,0.4); transform: translateY(-1px); color:#fff; }
+        .btn-gold-custom {
+            background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+            border: none;
+            color: #fff;
+        }
+        .btn-gold-custom:hover { box-shadow: 0 4px 20px rgba(201,168,76,0.4); transform: translateY(-1px); color:#fff; }
+
+        .speech-input-group {
+            display: flex;
+            gap: 8px;
+        }
+        .speech-input-group input {
+            flex: 1;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 14px;
+            color: #e0e0e0;
+            font-size: 0.9rem;
+        }
+        .speech-input-group input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(124,111,247,0.12);
+            outline: none;
+        }
+
+        .team-select-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .team-check-btn {
+            padding: 6px 14px;
+            border-radius: 8px;
+            border: 1.5px solid rgba(255,255,255,0.15);
+            background: transparent;
+            color: rgba(255,255,255,0.6);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+        }
+        .team-check-btn.selected {
+            background: rgba(201,168,76,0.15);
+            border-color: var(--gold);
+            color: var(--gold-light);
+            box-shadow: 0 0 10px rgba(201,168,76,0.2);
+        }
+        .team-check-btn:hover:not(.selected) {
+            border-color: rgba(255,255,255,0.3);
+            color: rgba(255,255,255,0.8);
+        }
+
+        /* ========== 遮罩 ========== */
+        .thinking-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(10,14,26,0.7);
+            backdrop-filter: blur(4px);
+            z-index: 200;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .thinking-overlay.active { display: flex; }
+        .thinking-ring {
+            width: 50px; height: 50px;
+            border: 3px solid rgba(255,255,255,0.08);
+            border-top: 3px solid var(--gold);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .thinking-text {
+            margin-top: 14px;
+            color: var(--gold-light);
+            font-weight: 700;
+            font-size: 0.95rem;
+            letter-spacing: 0.05em;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<!-- 状态栏 -->
+<div class="status-bar" id="status-bar">
+    <span class="status-bar-label"><i class="bi bi-plug-fill me-1"></i>LLM 连接</span>
+    <span id="status-items">加载中...</span>
+</div>
+
+<!-- 思考遮罩 -->
+<div class="thinking-overlay" id="thinking-overlay">
+    <div class="thinking-ring"></div>
+    <div class="thinking-text">LLM 在思考...</div>
+</div>
+
+<!-- 游戏布局 -->
+<div class="game-layout">
+    <!-- 侧边栏 -->
+    <div class="sidebar" id="sidebar">
+        <div class="info-box identity-card" id="identity-box">
+            <div class="info-box-title"><i class="bi bi-person-badge"></i>你的身份</div>
+            <div id="player-identity">加载中...</div>
+        </div>
+        <div class="info-box" id="mission-box">
+            <div class="info-box-title"><i class="bi bi-flag-fill"></i>任务进度</div>
+            <div class="mission-tracker" id="mission-tracker"></div>
+        </div>
+        <div class="info-box">
+            <div class="info-box-title"><i class="bi bi-people-fill"></i>存活玩家</div>
+            <div class="alive-grid" id="alive-grid"></div>
+        </div>
+        <div class="info-box" id="vision-box" style="display:none;">
+            <div class="info-box-title"><i class="bi bi-eye-fill"></i>视野信息</div>
+            <div id="vision-content"></div>
+        </div>
+        <div class="info-box">
+            <div class="info-box-title"><i class="bi bi-hourglass-split"></i>当前阶段</div>
+            <div id="phase-display">-</div>
+        </div>
+    </div>
+
+    <!-- 主区域 -->
+    <div class="main-area">
+        <div class="log-panel" id="log-panel">
+            <div style="text-align:center;color:rgba(255,255,255,0.2);padding:60px 0;">
+                <i class="bi bi-hourglass-split" style="font-size:2rem;display:block;margin-bottom:10px;"></i>
+                等待游戏开始...
+            </div>
+        </div>
+        <div class="action-panel" id="action-panel">
+            <div style="text-align:center;color:rgba(255,255,255,0.2);">等待你的回合...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+const GAME_ID = '{{ game_id }}';
+let pollTimer = null;
+let lastPhase = '';
+let lastActionType = '';
+let lastLogFingerprint = '';
+
+async function pollState() {
+    try {
+        const resp = await fetch('/api/game/' + GAME_ID + '/state/');
+        const state = await resp.json();
+        if (state.error) return;
+        updateUI(state);
+        if (state.phase === 'game_over' && lastPhase !== 'game_over') {
+            lastPhase = 'game_over';
+            setTimeout(() => { window.location.href = '/game/' + GAME_ID + '/result/'; }, 2000);
+            return;
+        }
+        // 只在 action 类型变化时才重建操作面板，避免输入框闪烁
+        if (state.human_action_needed && state.human_action_type !== lastActionType) {
+            showActions(state);
+        } else if (!state.human_action_needed && lastActionType) {
+            document.getElementById('action-panel').innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.2);">等待你的回合...</div>';
+        }
+        lastActionType = state.human_action_type || '';
+        lastPhase = state.phase;
+        // 轮询中不显示思考遮罩——只在提交操作时显示
+    } catch(e) { console.error(e); }
+}
+
+function updateUI(state) {
+    updateStatusBar(state.llm_status || []);
+    updateIdentity(state.human_player);
+    updateMissionTracker(state.mission_results || [], state.mission_num);
+    updateAliveGrid(state.alive_players || [], state.leader || '');
+    updateVision(state.human_player);
+    updatePhase(state);
+    updateLog(state);
+}
+
+function updateStatusBar(list) {
+    document.getElementById('status-items').innerHTML = list.map(s => {
+        const dotMap = {online:'dot-online', error:'dot-error', checking:'dot-checking', unknown:'dot-unknown'};
+        const clsMap = {online:'online', error:'error', checking:'checking', unknown:''};
+        return `<span class="status-chip ${clsMap[s.status] || ''}">
+            <span class="status-dot ${dotMap[s.status] || 'dot-unknown'}"></span>
+            ${s.name}
+            <small style="color:rgba(255,255,255,0.3);font-size:0.65rem;">${s.status_message || ''}</small>
+        </span>`;
+    }).join('') || '<span style="color:rgba(255,255,255,0.3);">无LLM</span>';
+}
+
+function updateIdentity(hp) {
+    if (!hp) return;
+    const teamClass = hp.team === 'good' ? 'good' : 'evil';
+    const teamIcon = hp.team === 'good' ? '🛡️' : '💀';
+    document.getElementById('player-identity').innerHTML = `
+        <div class="identity-name">玩家 U ${teamIcon}</div>
+        <span class="identity-role ${teamClass}">${hp.role_name || '未知'}</span>
+        <span class="alive-badge ${hp.alive ? 'live' : 'dead'}">${hp.alive ? '● 存活' : '☠ 死亡'}</span>
+    `;
+}
+
+function updateMissionTracker(results, curMission) {
+    let html = '';
+    for (let i = 0; i < 5; i++) {
+        const r = results[i];
+        let cls = '';
+        if (r) cls = r.passed ? 'pass' : 'fail';
+        else if (i + 1 === curMission) cls = 'pass';
+        html += `<div class="mission-node ${cls}">${i + 1}</div>`;
+    }
+    document.getElementById('mission-tracker').innerHTML = html;
+}
+
+function updateAliveGrid(alive, leader) {
+    const allPlayers = ['U','A','B','C','D','E','F','G','H','I'];
+    document.getElementById('alive-grid').innerHTML = allPlayers.map(n => {
+        const isAlive = alive.includes(n);
+        const isLeader = n === leader;
+        const isHuman = n === 'U';
+        let cls = '';
+        if (!isAlive) cls += ' style="opacity:0.25;text-decoration:line-through;"';
+        if (isLeader) cls += ' leader';
+        if (isHuman) cls += ' human';
+        return `<span class="alive-dot ${isLeader ? 'leader' : ''} ${isHuman ? 'human' : ''}"${!isAlive ? ' style="opacity:0.25;text-decoration:line-through;"' : ''}>${n}</span>`;
+    }).join('');
+}
+
+function updateVision(hp) {
+    if (!hp) return;
+    let html = '';
+    const box = document.getElementById('vision-box');
+    if (hp.known_evil && hp.known_evil.length) {
+        html += '<div style="margin-bottom:6px;"><span style="color:var(--evil-light);font-weight:600;font-size:0.75rem;">已知坏人</span><br>';
+        html += hp.known_evil.map(n => `<span class="vision-tag evil-tag">${n}</span>`).join(' ');
+        html += '</div>';
+    }
+    if (hp.known_good && hp.known_good.length) {
+        html += '<div style="margin-bottom:6px;"><span style="color:var(--good-light);font-weight:600;font-size:0.75rem;">已知好人</span><br>';
+        html += hp.known_good.map(n => `<span class="vision-tag good-tag">${n}</span>`).join(' ');
+        html += '</div>';
+    }
+    if (hp.known_merlin_candidates && hp.known_merlin_candidates.length) {
+        html += '<div><span style="color:#ffb74d;font-weight:600;font-size:0.75rem;">梅林候选人</span><br>';
+        html += hp.known_merlin_candidates.map(n => `<span class="vision-tag candidate-tag">${n}</span>`).join(' ');
+        html += '</div>';
+    }
+    if (html) {
+        box.style.display = 'block';
+        document.getElementById('vision-content').innerHTML = html;
+    } else if (hp.team === 'good' && hp.role === 'loyal') {
+        box.style.display = 'block';
+        document.getElementById('vision-content').innerHTML = '<span style="color:rgba(255,255,255,0.3);font-size:0.8rem;">无特殊视野（忠臣）</span>';
+    } else if (hp.role === 'oberon') {
+        box.style.display = 'block';
+        document.getElementById('vision-content').innerHTML = '<span style="color:rgba(255,255,255,0.3);font-size:0.8rem;">你是奥伯伦，无视野</span>';
+    } else {
+        box.style.display = 'none';
+    }
+}
+
+function updatePhase(state) {
+    const names = {
+        setup:'设置中',role_reveal:'角色揭示',leader_proposal:'队长选人',
+        discussion:'讨论发言',team_vote:'队伍投票',mission_vote:'任务执行',
+        assassination:'暗杀阶段',game_over:'游戏结束'
+    };
+    document.getElementById('phase-display').innerHTML = `
+        <div style="font-weight:700;color:var(--gold-light);">${names[state.phase] || state.phase}</div>
+        <div style="font-size:0.75rem;color:rgba(255,255,255,0.35);">第 ${state.round_num || 1} 轮</div>
+        ${state.leader ? `<div style="font-size:0.75rem;color:rgba(255,255,255,0.5);margin-top:4px;">👑 队长: <span style="color:var(--gold-light);">${state.leader}</span></div>` : ''}
+    `;
+}
+
+function updateLog(state) {
+    const panel = document.getElementById('log-panel');
+    // 内容指纹：发言数 + 日志数 + 投票数，避免无效重建
+    const speechesLen = (state.speeches || []).length;
+    const logsLen = (state.game_log || []).length;
+    const teamVotesLen = state.team_votes ? Object.keys(state.team_votes).length : 0;
+    const missionVotesLen = state.mission_votes ? Object.keys(state.mission_votes).length : 0;
+    const fingerprint = `${speechesLen}|${logsLen}|${teamVotesLen}|${missionVotesLen}|${state.proposed_team ? state.proposed_team.join(',') : ''}`;
+    if (fingerprint === lastLogFingerprint) return;
+    lastLogFingerprint = fingerprint;
+
+    let html = '';
+
+    // 游戏日志
+    (state.game_log || []).forEach(log => {
+        const cls = log.message.includes('获胜') || log.message.includes('暗杀') ? 'log-important' : 'log-system';
+        html += `<div class="log-entry ${cls}"><span class="log-time">[${log.time}]</span>${log.message}</div>`;
+    });
+
+    // 发言
+    const speeches = state.speeches || [];
+    if (speeches.length) {
+        html += '<div class="section-label">💬 本轮发言</div>';
+        speeches.forEach(s => {
+            const isHuman = s.player === 'U';
+            html += `<div class="speech-block">
+                <div class="speech-header">
+                    <span class="speech-avatar ${isHuman ? 'human' : 'ai'}">${s.player}</span>
+                    <span class="speech-name ${isHuman ? 'human' : 'ai'}">玩家 ${s.player}</span>
+                </div>
+                <div class="speech-bubble ${isHuman ? 'human-bubble' : ''}">${escHtml(s.text)}</div>
+            </div>`;
+        });
+    }
+
+    // 队伍投票
+    if (state.team_votes && Object.keys(state.team_votes).length) {
+        html += '<div class="section-label">🗳️ 队伍投票</div>';
+        html += '<div class="vote-section">';
+        Object.entries(state.team_votes).sort().forEach(([n,v]) => {
+            html += `<span class="vote-chip ${v === 'Y' ? 'yes' : 'no'}">${n} ${v === 'Y' ? '✓' : '✗'}</span>`;
+        });
+        html += '</div>';
+    }
+
+    // 任务投票
+    if (state.mission_votes && Object.keys(state.mission_votes).length) {
+        const succ = Object.values(state.mission_votes).filter(v => v === 'success').length;
+        const fail = Object.values(state.mission_votes).filter(v => v === 'fail').length;
+        html += `<div class="section-label">🎯 任务结果</div>`;
+        html += `<div style="font-size:0.85rem;color:var(--gold-light);">成功 ${succ} 票 / 失败 ${fail} 票</div>`;
+    }
+
+    // 提议队伍
+    if (state.proposed_team && state.proposed_team.length) {
+        html += `<div style="margin:8px 0;padding:8px;background:rgba(201,168,76,0.05);border-radius:8px;border:1px solid rgba(201,168,76,0.12);">
+            <span style="font-weight:700;color:var(--gold-light);">提议队伍:</span>
+            <span style="color:rgba(255,255,255,0.7);">${state.proposed_team.join(', ')} （需${state.current_mission_size}人）</span>
+        </div>`;
+    }
+
+    if (!html) html = '<div style="text-align:center;color:rgba(255,255,255,0.2);padding:60px 0;">等待游戏开始...</div>';
+    panel.innerHTML = html;
+    panel.scrollTop = panel.scrollHeight;
+}
+
+function showActions(state) {
+    const panel = document.getElementById('action-panel');
+    const type = state.human_action_type;
+
+    // 如果当前已显示同类型操作面板，不重复重建（避免输入框闪烁/失焦）
+    if (panel.dataset.actionType === type && type === 'speak') {
+        return;
+    }
+    panel.dataset.actionType = type;
+
+    let html = `<div class="action-prompt">⚡ ${state.human_action_needed}</div>`;
+
+    if (type === 'speak') {
+        html += `<div class="speech-input-group">
+            <input type="text" id="speech-input" placeholder="输入你的发言...（按 Enter 发送）" onkeydown="if(event.key==='Enter')submitAction('speak',{text:this.value})">
+            <button class="btn btn-action btn-speak" onclick="submitAction('speak',{text:document.getElementById('speech-input').value})">
+                <i class="bi bi-send-fill me-1"></i>发言
+            </button>
+        </div>`;
+    } else if (type === 'vote_team') {
+        html += `<div style="margin-bottom:8px;color:rgba(255,255,255,0.6);">对队伍 <span style="color:var(--gold-light);font-weight:700;">${(state.proposed_team||[]).join(', ')}</span> 投票</div>`;
+        html += `<button class="btn btn-action btn-success-custom me-2" onclick="submitAction('vote_team',{vote:'Y'})">
+            <i class="bi bi-hand-thumbs-up me-1"></i>赞成 (Y)
+        </button>
+        <button class="btn btn-action btn-danger-custom" onclick="submitAction('vote_team',{vote:'N'})">
+            <i class="bi bi-hand-thumbs-down me-1"></i>反对 (N)
+        </button>`;
+    } else if (type === 'vote_mission') {
+        html += `<div style="margin-bottom:8px;color:rgba(255,255,255,0.6);">你在任务队伍中！</div>`;
+        html += `<button class="btn btn-action btn-success-custom me-2" onclick="submitAction('vote_mission',{vote:'success'})">
+            <i class="bi bi-check-circle me-1"></i>任务成功
+        </button>
+        <button class="btn btn-action btn-danger-custom" onclick="submitAction('vote_mission',{vote:'fail'})">
+            <i class="bi bi-x-circle me-1"></i>任务失败
+        </button>`;
+    } else if (type === 'propose_team') {
+        const size = state.current_mission_size || 3;
+        const alive = state.alive_players || [];
+        html += `<div style="margin-bottom:8px;color:rgba(255,255,255,0.5);">请选择 <span style="color:var(--gold-light);">${size}</span> 名玩家</div>`;
+        html += '<div class="team-select-grid" id="team-grid">';
+        alive.forEach(p => {
+            html += `<button class="team-check-btn" data-player="${p}" onclick="toggleTeamBtn(this)">${p}</button>`;
+        });
+        html += '</div>';
+        html += `<div style="margin-top:8px;"><small style="color:rgba(255,255,255,0.3);" id="team-count">已选: 0/${size}</small></div>`;
+        html += `<button class="btn btn-action btn-gold-custom mt-2" id="btn-confirm-team" onclick="confirmTeam(${size})" disabled>
+            <i class="bi bi-check-lg me-1"></i>确认队伍
+        </button>`;
+    } else if (type === 'assassinate') {
+        const alive = (state.alive_players || []).filter(p => p !== 'U');
+        html += '<div style="margin-bottom:6px;color:rgba(255,255,255,0.5);font-size:0.85rem;">选择你认为是梅林的玩家:</div>';
+        html += '<div class="team-select-grid">';
+        alive.forEach(p => {
+            html += `<button class="team-check-btn" onclick="submitAction('assassinate',{guess:'${p}'})">🗡️ ${p}</button>`;
+        });
+        html += '</div>';
+    }
+
+    panel.innerHTML = html;
+
+    if (type === 'speak') {
+        setTimeout(() => { const inp = document.getElementById('speech-input'); if(inp) inp.focus(); }, 100);
+    }
+}
+
+function toggleTeamBtn(btn) {
+    btn.classList.toggle('selected');
+        const promptEl = document.querySelector('.action-prompt');
+        const size = promptEl ? parseInt(promptEl.textContent.match(/\d+/)?.[0] || 3) : 3;
+    const selected = document.querySelectorAll('.team-check-btn.selected').length;
+    const cnt = document.getElementById('team-count');
+    if (cnt) cnt.textContent = `已选: ${selected}/${size}`;
+    const confirmBtn = document.getElementById('btn-confirm-team');
+    if (confirmBtn) confirmBtn.disabled = selected !== size;
+}
+
+function confirmTeam(size) {
+    const selected = Array.from(document.querySelectorAll('.team-check-btn.selected')).map(b => b.dataset.player);
+    if (selected.length !== size) return;
+    submitAction('propose_team', {team: selected});
+}
+
+async function submitAction(type, data) {
+    const panel = document.getElementById('action-panel');
+    panel.dataset.actionType = '';
+    panel.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.2);">处理中...</div>';
+    try {
+        const resp = await fetch('/api/game/' + GAME_ID + '/action/', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({action_type: type, data: data}),
+        });
+        const state = await resp.json();
+        lastActionType = '';
+        lastLogFingerprint = '';
+        updateUI(state);
+        if (state.human_action_needed) showActions(state);
+        else document.getElementById('action-panel').innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.2);">等待你的回合...</div>';
+        if (state.phase === 'game_over') {
+            setTimeout(() => { window.location.href = '/game/' + GAME_ID + '/result/'; }, 2000);
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+function escHtml(t) {
+    const d = document.createElement('div');
+    d.textContent = t;
+    return d.innerHTML;
+}
+
+// Init
+async function initGame() {
+    try {
+        const resp = await fetch('/api/game/' + GAME_ID + '/action/', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({action_type:'init', data:{}}),
+        });
+        const state = await resp.json();
+        lastActionType = '';
+        lastLogFingerprint = '';
+        updateUI(state);
+        if (state.human_action_needed) showActions(state);
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+pollTimer = setInterval(pollState, 2000);
+initGame();
+pollState();
+</script>
+</body>
+</html>
