@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/badge/license-MIT-orange" alt="License">
 </p>
 
-# ⚔️ 阿瓦隆 — AI 大模型桌游对战
+# ⚔️ LLM Chat 阿瓦隆桌游：人工智能深度觉醒对战版 (LLM Agent Avalon WEB Version)
 
 基于 Django + Bootstrap 的 **阿瓦隆（The Resistance: Avalon）** 网页版，10 人局，
 支持 **多个大语言模型（LLM）扮演 AI 玩家**，与人类玩家同台博弈。
