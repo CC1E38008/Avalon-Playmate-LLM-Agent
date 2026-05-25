@@ -1,11 +1,13 @@
+
+
+# ⚔️ LLM Chat 阿瓦隆桌游 Agent：人工智能深度觉醒对战版 (LLM Agent Avalon WEB Version)
+
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10+-blue?logo=python" alt="Python">
   <img src="https://img.shields.io/badge/Django-4.2+-green?logo=django" alt="Django">
   <img src="https://img.shields.io/badge/Bootstrap-5.3-purple?logo=bootstrap" alt="Bootstrap">
   <img src="https://img.shields.io/badge/license-MIT-orange" alt="License">
 </p>
-
-# ⚔️ LLM Chat 阿瓦隆桌游 Agent：人工智能深度觉醒对战版 (LLM Agent Avalon WEB Version)
 
 基于 Django + Bootstrap 的 **阿瓦隆（The Resistance: Avalon）** 网页版，10 人局，
 支持 **多个大语言模型（LLM）扮演 AI 玩家**，与人类玩家同台博弈。
