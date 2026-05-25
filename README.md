@@ -61,7 +61,14 @@ pip install -r requirements.txt
 ### 启动
 
 ```bash
+chmod +x ./manage.py
 python3 manage.py runserver 0.0.0.0:8888
+
+or
+
+chmod +x ./run.sh
+chmod +x ./manage.py
+./run.sh
 ```
 
 浏览器打开 `http://localhost:8888`
