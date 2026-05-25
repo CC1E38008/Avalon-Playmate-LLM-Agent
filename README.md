@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/license-MIT-orange" alt="License">
 </p>
 
-基于 Django + Bootstrap 的 **阿瓦隆（The Resistance: Avalon）** 网页版，10 人局，
+基于 Django + Bootstrap 的 **阿瓦隆（The Avalon）** 网页版，10 人局，
 支持 **多个大语言模型（LLM）扮演 AI 玩家**，与人类玩家同台博弈。
 
 > 每个 AI 玩家由独立的大模型驱动，通过公开发言、投票来隐藏身份、迷惑对手、帮助阵营获胜。
