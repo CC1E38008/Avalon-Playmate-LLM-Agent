@@ -49,8 +49,8 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/yourname/avalon-llm-game.git
-cd avalon-llm-game
+git clone https://github.com/CC1E38008/Avalon-Playmate-LLM-Agent.git
+cd Avalon-Playmate-LLM-Agent
 
 # 安装依赖
 pip install django --break-system-packages
