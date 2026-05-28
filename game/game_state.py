@@ -121,6 +121,7 @@ class GameState:
         self.mission_num = 0         # 等同于 round_num
         self.leader_index = 0        # 当前队长在 all_players 中的索引
         self.consecutive_rejections = 0
+        self.forced_mission = False    # 当前是否为强制出征任务
         self.mission_results = []    # [(success_count, fail_count, passed_bool), ...]
         self.discussion_order = []   # 本轮发言顺序
         self.current_speaker_idx = 0
@@ -293,6 +294,7 @@ class GameState:
             'mission_votes': self.mission_votes,
             'mission_results': self.mission_results,
             'consecutive_rejections': self.consecutive_rejections,
+            'forced_mission': self.forced_mission,
             'max_rejections': MAX_REJECTIONS,
             'speeches': self.speeches[-50:],  # 只发送最近50条发言
             'game_log': self.game_log[-30:],
@@ -400,7 +402,10 @@ class GameState:
                 voter = self.players[voter_name]
 
                 if voter.is_human:
-                    self.human_action_needed = f"你在任务队伍中！请投任务票 (success=任务成功 / fail=任务失败)"
+                    if self.forced_mission:
+                        self.human_action_needed = f"⚠️ 强制出征！你在任务队伍中。若任务失败则坏人直接获胜。请投票 (success=成功 / fail=失败)"
+                    else:
+                        self.human_action_needed = f"你在任务队伍中！请投任务票 (success=任务成功 / fail=任务失败)"
                     self.human_action_type = 'vote_mission'
                     return
                 else:
@@ -530,9 +535,12 @@ class GameState:
             self._add_log(f"队伍投票未通过！连续拒绝: {self.consecutive_rejections}/{MAX_REJECTIONS}")
 
             if self.consecutive_rejections >= MAX_REJECTIONS:
-                self.winner = 'evil'
-                self.phase = GamePhase.GAME_OVER
-                self._add_log("连续5次拒绝，坏人阵营获胜！")
+                # 5次否决 → 强制出征（直接进入任务执行，不再投票）
+                self.forced_mission = True
+                self.phase = GamePhase.MISSION_VOTE
+                self.mission_votes = {}
+                self._add_log(f"连续{MAX_REJECTIONS}次队伍被否决！队伍强制出征: {', '.join(self.proposed_team)}")
+                self._add_log("⚠️ 如果此次强制任务失败，坏人阵营直接获胜！")
             else:
                 # 下一个队长
                 self.leader_index = (self.leader_index + 1) % 10
@@ -561,6 +569,18 @@ class GameState:
         # 检查胜利条件
         good_wins = sum(1 for r in self.mission_results if r['passed'])
         evil_wins = sum(1 for r in self.mission_results if not r['passed'])
+
+        # 强制出征任务失败 → 坏人直接获胜
+        if self.forced_mission and not passed:
+            self.winner = 'evil'
+            self.phase = GamePhase.GAME_OVER
+            self._add_log("强制出征任务失败！坏人阵营获胜！")
+            return
+
+        # 强制出征任务成功 → 重置标记，继续游戏
+        if self.forced_mission and passed:
+            self._add_log("强制出征任务成功！游戏继续。")
+        self.forced_mission = False
 
         if good_wins >= 3:
             # 好人赢得3轮，进入暗杀阶段
