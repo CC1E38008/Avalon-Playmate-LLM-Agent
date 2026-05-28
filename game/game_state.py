@@ -469,6 +469,9 @@ class GameState:
                 self._advance_internal()
 
             elif action_type == 'assassinate':
+                # 仅刺客本人可执行暗杀
+                if self.get_human_player().role != 'assassin':
+                    return
                 guess = data.get('guess', '')
                 self.assassin_guess = guess
                 self._process_assassination()
