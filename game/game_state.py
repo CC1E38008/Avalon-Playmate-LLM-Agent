@@ -195,13 +195,15 @@ class GameState:
             role = player.role
 
             if role == 'merlin':
-                # 梅林: 知道所有坏人，除了莫德雷德
+                # 梅林: 知道所有坏人，除了莫德雷德（莫德雷德在梅林眼中是好人）
                 for ep in evil_players:
                     if ep.role != 'mordred':
                         player.known_evil.append(ep.name)
+                    else:
+                        player.known_good.append(ep.name)
                 remaining = [p.name for p in self.players.values()
                            if p.name not in player.known_evil and p.name != player.name]
-                player.known_good = [n for n in remaining if self.players[n].team == 'good']
+                player.known_good += [n for n in remaining if self.players[n].team == 'good']
 
             elif role == 'percival':
                 # 派西维尔: 知道梅林和莫甘娜 (但不知道谁是谁)
@@ -296,8 +298,8 @@ class GameState:
             'consecutive_rejections': self.consecutive_rejections,
             'forced_mission': self.forced_mission,
             'max_rejections': MAX_REJECTIONS,
-            'speeches': self.speeches[-50:],  # 只发送最近50条发言
-            'game_log': self.game_log[-30:],
+            'speeches': self.speeches,  # 全部发言
+            'game_log': self.game_log,
             'discussion_order': self.discussion_order,
             'current_speaker': self.discussion_order[self.current_speaker_idx] if self.current_speaker_idx < len(self.discussion_order) else None,
             'human_player': self.get_human_player().to_dict(),
@@ -350,11 +352,15 @@ class GameState:
 
             if self.phase == GamePhase.DISCUSSION:
                 if self.current_speaker_idx >= len(self.discussion_order):
-                    # 发言结束，进入投票
-                    self.phase = GamePhase.TEAM_VOTE
-                    self.team_votes = {}
-                    self._add_log("发言结束，开始对队伍进行投票。")
-                    continue
+                    # 发言结束 → 队长调整队伍后再进入表决
+                    leader = self.get_current_leader()
+                    if leader.is_human:
+                        self.human_action_needed = f"发言结束。你是队长，可调整队伍后确认。当前: {', '.join(self.proposed_team)}"
+                        self.human_action_type = 'adjust_team'
+                        return
+                    else:
+                        self._ai_adjust_team(leader)
+                        continue
 
                 speaker_name = self.discussion_order[self.current_speaker_idx]
                 speaker = self.players[speaker_name]
@@ -383,7 +389,9 @@ class GameState:
                 voter = self.players[voter_name]
 
                 if voter.is_human:
-                    self.human_action_needed = f"你对队伍 {', '.join(self.proposed_team)} 投赞成(Y)还是反对(N)?"
+                    attempt_num = self.consecutive_rejections + 1
+                    attempt_str = f"第{attempt_num}次" if self.consecutive_rejections > 0 else ""
+                    self.human_action_needed = f"第{self.mission_num}轮 {attempt_str}对队伍 {', '.join(self.proposed_team)} 投赞成(Y)还是反对(N)?".replace("  ", " ")
                     self.human_action_type = 'vote_team'
                     return
                 else:
@@ -402,10 +410,15 @@ class GameState:
                 voter = self.players[voter_name]
 
                 if voter.is_human:
-                    if self.forced_mission:
-                        self.human_action_needed = f"⚠️ 强制出征！你在任务队伍中。若任务失败则坏人直接获胜。请投票 (success=成功 / fail=失败)"
+                    gp = self.get_human_player()
+                    evil_score = sum(1 for r in self.mission_results if not r['passed'])
+                    good_score = sum(1 for r in self.mission_results if r['passed'])
+                    fails_needed = MISSION_FAILS_NEEDED[self.mission_num - 1]
+                    if gp.team == 'evil':
+                        tip = f"你是{gp.role_name}(坏人)。可投失败破坏任务(需{fails_needed}票)或投成功隐藏身份。"
                     else:
-                        self.human_action_needed = f"你在任务队伍中！请投任务票 (success=任务成功 / fail=任务失败)"
+                        tip = f"你是{gp.role_name}(好人)，只能投成功。"
+                    self.human_action_needed = f"第{self.mission_num}轮任务投票 | 比分 {good_score}:{evil_score} | {tip}"
                     self.human_action_type = 'vote_mission'
                     return
                 else:
@@ -477,6 +490,19 @@ class GameState:
                 self._process_assassination()
                 self._advance_internal()
 
+            elif action_type == 'adjust_team':
+                team = data.get('team', None)
+                size = MISSION_SIZES[self.mission_num - 1]
+                if team is not None and len(team) == size:
+                    self.proposed_team = team
+                    self._add_log(f"队长 {HUMAN_PLAYER} 调整队伍为: {', '.join(team)}")
+                else:
+                    self._add_log(f"队长 {HUMAN_PLAYER} 坚持原队伍: {', '.join(self.proposed_team)}")
+                self.phase = GamePhase.TEAM_VOTE
+                self.team_votes = {}
+                self._add_log("队长确认队伍，开始投票。")
+                self._advance_internal()
+
     def _human_propose_team(self, team: list[str]):
         """人类队长选人"""
         size = MISSION_SIZES[self.mission_num - 1]
@@ -522,33 +548,31 @@ class GameState:
         yes_count = sum(1 for v in self.team_votes.values() if v == 'Y')
         no_count = sum(1 for v in self.team_votes.values() if v == 'N')
 
-        vote_detail = ', '.join(f"{n}:{'✓' if v == 'Y' else '✗'}" for n, v in sorted(self.team_votes.items()))
-        self._add_log(f"队伍投票: {vote_detail}")
-        self._add_log(f"结果: {yes_count} 赞成 / {no_count} 反对")
+        self._add_log(f"第{self.mission_num}轮队伍投票结果: {yes_count} 赞成 / {no_count} 反对")
 
         if yes_count > no_count:
             # 投票通过
             self.consecutive_rejections = 0
-            self._add_log("队伍投票通过！开始执行任务。")
+            self._add_log(f"第{self.mission_num}轮队伍投票通过！开始执行任务。")
             self.phase = GamePhase.MISSION_VOTE
             self.mission_votes = {}
         else:
             # 投票不通过
             self.consecutive_rejections += 1
-            self._add_log(f"队伍投票未通过！连续拒绝: {self.consecutive_rejections}/{MAX_REJECTIONS}")
+            self._add_log(f"第{self.mission_num}轮 第{self.consecutive_rejections}次队伍投票未通过（{self.consecutive_rejections}/{MAX_REJECTIONS}）")
 
             if self.consecutive_rejections >= MAX_REJECTIONS:
-                # 5次否决 → 强制出征（直接进入任务执行，不再投票）
+                # 5次否决 → 强制出征（跳过队伍投票，直接任务执行）
                 self.forced_mission = True
                 self.phase = GamePhase.MISSION_VOTE
                 self.mission_votes = {}
                 self._add_log(f"连续{MAX_REJECTIONS}次队伍被否决！队伍强制出征: {', '.join(self.proposed_team)}")
-                self._add_log("⚠️ 如果此次强制任务失败，坏人阵营直接获胜！")
             else:
-                # 下一个队长
+                # 下一个队长：清除旧投票，避免残留到新一轮讨论中
                 self.leader_index = (self.leader_index + 1) % 10
+                self.team_votes = {}
                 leader = self.get_current_leader()
-                self._add_log(f"新队长: {leader.name}")
+                self._add_log(f"第{self.mission_num}轮新队长: {leader.name}")
                 self.phase = GamePhase.LEADER_PROPOSAL
 
     def _process_mission_result(self):
@@ -564,7 +588,9 @@ class GameState:
             'fail': fail_count,
             'passed': passed,
             'team': list(self.proposed_team),
+            'forced': self.forced_mission,
         })
+        self.forced_mission = False
 
         status = '✓ 任务成功' if passed else '✗ 任务失败'
         self._add_log(f"第 {self.mission_num} 轮任务结果: {status} (成功:{success_count} 失败:{fail_count})")
@@ -572,18 +598,6 @@ class GameState:
         # 检查胜利条件
         good_wins = sum(1 for r in self.mission_results if r['passed'])
         evil_wins = sum(1 for r in self.mission_results if not r['passed'])
-
-        # 强制出征任务失败 → 坏人直接获胜
-        if self.forced_mission and not passed:
-            self.winner = 'evil'
-            self.phase = GamePhase.GAME_OVER
-            self._add_log("强制出征任务失败！坏人阵营获胜！")
-            return
-
-        # 强制出征任务成功 → 重置标记，继续游戏
-        if self.forced_mission and passed:
-            self._add_log("强制出征任务成功！游戏继续。")
-        self.forced_mission = False
 
         if good_wins >= 3:
             # 好人赢得3轮，进入暗杀阶段
@@ -658,11 +672,13 @@ class GameState:
             parts.append(f"当前提议的队伍: {', '.join(self.proposed_team)}")
             parts.append("")
 
-        # 队伍投票结果
-        if self.team_votes:
-            parts.append("--- 队伍投票 ---")
-            for n, v in sorted(self.team_votes.items()):
-                parts.append(f"{n}: {'赞成' if v == 'Y' else '反对'}")
+        # 队伍投票结果（仅在投票结束后显示，讨论/发言阶段不显示）
+        if self.team_votes and self.phase not in (GamePhase.DISCUSSION, GamePhase.LEADER_PROPOSAL):
+            yes = sum(1 for v in self.team_votes.values() if v == 'Y')
+            no = sum(1 for v in self.team_votes.values() if v == 'N')
+            attempt = f"第{self.consecutive_rejections}次" if self.consecutive_rejections > 0 else ""
+            parts.append(f"--- 第{self.mission_num}轮 {attempt}队伍投票 ---".replace("  ", " "))
+            parts.append(f"赞成: {yes}票 / 反对: {no}票")
             parts.append("")
 
         parts.append(f"当前队长: {self.get_current_leader().name}")
@@ -778,10 +794,51 @@ class GameState:
         self._start_discussion()
         self.processing_ai = False
 
+    def _ai_adjust_team(self, leader: Player):
+        """AI 队长根据讨论调整队伍"""
+        self.processing_ai = True
+        size = MISSION_SIZES[self.mission_num - 1]
+        alive = [p.name for p in self.get_alive_players()]
+
+        # 拼接讨论内容
+        discussion = "\n".join([f"玩家{s['player']}: {s['text']}" for s in self.speeches])
+
+        prompt = f"""你是队长，当前提议的队伍是: {', '.join(self.proposed_team)}（需{size}人）
+
+以下是本轮所有玩家的发言:
+{discussion}
+
+听完发言后，你可以坚持原队伍或调整。
+- 坚持原队伍 → 回复: KEEP
+- 调整队伍 → 回复新名单(逗号分隔，如: A,B,C,D)
+只回复 KEEP 或新名单，不要加其他内容。"""
+
+        resp = self._call_llm_for_player(leader, prompt, temperature=0.5, max_tokens=100)
+        resp = resp.strip().upper()
+
+        if resp == 'KEEP':
+            self._add_log(f"队长 {leader.name} 坚持原队伍: {', '.join(self.proposed_team)}")
+        else:
+            new_team = []
+            for ch in resp:
+                if ch in AI_PLAYERS + ['U']:
+                    if ch not in new_team and ch in alive:
+                        new_team.append(ch)
+            if len(new_team) >= size:
+                self.proposed_team = new_team[:size]
+                self._add_log(f"队长 {leader.name} 调整队伍为: {', '.join(self.proposed_team)}")
+            else:
+                self._add_log(f"队长 {leader.name} 坚持原队伍（调整无效）: {', '.join(self.proposed_team)}")
+
+        self.phase = GamePhase.TEAM_VOTE
+        self.team_votes = {}
+        self._add_log("队长确认队伍，开始投票。")
+        self.processing_ai = False
+
     def _ai_speak(self, player: Player):
         """AI 发言"""
         self.processing_ai = True
-        prompt = f"""现在轮到你发言了。你是玩家 {player.name}。
+        prompt = f"""第{self.mission_num}轮任务讨论，现在轮到你发言了。你是玩家 {player.name}。
 
 请发表你对当前局势的看法，帮助你的阵营赢得游戏。
 记住你的角色设定和视野信息。
@@ -795,10 +852,12 @@ class GameState:
     def _ai_vote_team(self, player: Player):
         """AI 投票"""
         self.processing_ai = True
-        prompt = f"""现在对队伍 [{', '.join(self.proposed_team)}] 进行投票。
+        attempt_num = self.consecutive_rejections + 1
+        attempt_str = f"第{attempt_num}次" if self.consecutive_rejections > 0 else ""
+        prompt = f"""第{self.mission_num}轮 {attempt_str}对队伍 [{', '.join(self.proposed_team)}] 进行投票。
 
 请只回复一个字母: Y (赞成) 或 N (反对)。
-不要添加任何其他内容。"""
+不要添加任何其他内容。""".replace("  ", " ")
         resp = self._call_llm_for_player(player, prompt, temperature=0.3, max_tokens=10)
         vote = 'Y' if 'Y' in resp.upper() else 'N'
         self.team_votes[player.name] = vote
@@ -807,9 +866,21 @@ class GameState:
     def _ai_vote_mission(self, player: Player):
         """AI 任务投票"""
         self.processing_ai = True
-        prompt = f"""你在任务队伍中！请投票。
+        fails_needed = MISSION_FAILS_NEEDED[self.mission_num - 1]
+        evil_score = sum(1 for r in self.mission_results if not r['passed'])
+        good_score = sum(1 for r in self.mission_results if r['passed'])
 
-好人只能投"成功"。坏人可以投"成功"或"失败"。
+        if player.team == 'evil':
+            strategy = f"""作为坏人阵营玩家，你的策略选择：
+- 投 fail(失败): 帮助坏人破坏任务（当前需{fails_needed}票失败），但可能暴露身份
+- 投 success(成功): 伪装成好人隐藏身份，迷惑对手判断"""
+        else:
+            strategy = "作为好人阵营玩家，你必须投 success(成功)。"
+
+        prompt = f"""你在第{self.mission_num}轮任务队伍中！请投票。
+当前比分: 好人 {good_score} - {evil_score} 坏人
+
+{strategy}
 
 请只回复一个词: success (成功) 或 fail (失败)。
 不要添加任何其他内容。"""
