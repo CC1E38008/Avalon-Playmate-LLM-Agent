@@ -18,7 +18,12 @@
 
 ## 📸 预览
 
-<img width="50%" height="50%" alt="⚔️ 阿瓦隆 - 游戏结算_202652574715" src="https://github.com/user-attachments/assets/3651d143-1d3c-4079-8120-9a25f6b0a9a3" /> <img width="50%" height="50%" alt="b1453c00fb9b5e36525c47f40c3bc5d0" src="https://github.com/user-attachments/assets/65a4c991-1790-44cc-bc0f-e4970958683a" />
+<table align="center" border="0">
+  <tr>
+    <td align="center" width="50%"><img width="100%" alt="⚔️ 阿瓦隆 - 游戏结算_202652574715" src="https://github.com/user-attachments/assets/3651d143-1d3c-4079-8120-9a25f6b0a9a3" /></td>
+    <td align="center" width="50%"><img width="100%" alt="b1453c00fb9b5e36525c47f40c3bc5d0" src="https://github.com/user-attachments/assets/65a4c991-1790-44cc-bc0f-e4970958683a" /></td>
+  </tr>
+</table>
 
 
 
