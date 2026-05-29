@@ -525,6 +525,10 @@
             <div class="info-box-title"><i class="bi bi-hourglass-split"></i>当前阶段</div>
             <div id="phase-display">-</div>
         </div>
+        <div class="info-box" id="reject-box" style="display:none;">
+            <div class="info-box-title"><i class="bi bi-exclamation-triangle-fill"></i>连续否决</div>
+            <div id="reject-display"></div>
+        </div>
     </div>
 
     <!-- 主区域 -->
@@ -578,6 +582,7 @@ function updateUI(state) {
     updateAliveGrid(state.alive_players || [], state.leader || '');
     updateVision(state.human_player);
     updatePhase(state);
+    updateRejectCounter(state);
     updateLog(state);
 }
 
@@ -676,6 +681,25 @@ function updatePhase(state) {
     `;
 }
 
+function updateRejectCounter(state) {
+    const box = document.getElementById('reject-box');
+    const c = state.consecutive_rejections || 0;
+    const max = state.max_rejections || 5;
+    if (c > 0) {
+        box.style.display = 'block';
+        const pct = (c / max) * 100;
+        const color = c >= 4 ? 'var(--evil)' : c >= 3 ? '#ff9800' : 'var(--gold)';
+        document.getElementById('reject-display').innerHTML = `
+            <div style="font-weight:700;color:${color};font-size:0.9rem;">${c} / ${max}</div>
+            <div style="height:4px;background:rgba(255,255,255,0.08);border-radius:2px;margin-top:4px;overflow:hidden;">
+                <div style="height:100%;width:${pct}%;background:${color};border-radius:2px;transition:width 0.4s;"></div>
+            </div>
+            <div style="font-size:0.65rem;color:rgba(255,255,255,0.3);margin-top:2px;">${c >= 4 ? '⚠️ 再拒1次即强制出征' : ''}</div>`;
+    } else {
+        box.style.display = 'none';
+    }
+}
+
 function updateLog(state) {
     const panel = document.getElementById('log-panel');
     // 内容指纹：发言数 + 日志数 + 投票数，避免无效重建
@@ -711,21 +735,24 @@ function updateLog(state) {
         });
     }
 
-    // 队伍投票
-    if (state.team_votes && Object.keys(state.team_votes).length) {
-        html += '<div class="section-label">🗳️ 队伍投票</div>';
+    // 队伍投票（发言/投票期间隐藏，投票结束后才显示）
+    if (state.team_votes && Object.keys(state.team_votes).length
+        && state.phase !== 'team_vote' && state.phase !== 'discussion' && state.phase !== 'leader_proposal') {
+        const yes = Object.values(state.team_votes).filter(v => v === 'Y').length;
+        const no = Object.values(state.team_votes).filter(v => v === 'N').length;
+        const attempt = state.consecutive_rejections > 0 ? `第${state.consecutive_rejections}次` : '';
+        html += `<div class="section-label">🗳️ 第 ${state.mission_num} 轮 ${attempt}队伍投票</div>`;
         html += '<div class="vote-section">';
-        Object.entries(state.team_votes).sort().forEach(([n,v]) => {
-            html += `<span class="vote-chip ${v === 'Y' ? 'yes' : 'no'}">${n} ${v === 'Y' ? '✓' : '✗'}</span>`;
-        });
+        html += `<span class="vote-chip yes">✓ 赞成 ${yes}</span>`;
+        html += `<span class="vote-chip no">✗ 反对 ${no}</span>`;
         html += '</div>';
     }
 
-    // 任务投票
+    // 任务投票（匿名：只显示票数）
     if (state.mission_votes && Object.keys(state.mission_votes).length) {
         const succ = Object.values(state.mission_votes).filter(v => v === 'success').length;
         const fail = Object.values(state.mission_votes).filter(v => v === 'fail').length;
-        html += `<div class="section-label">🎯 任务结果</div>`;
+        html += `<div class="section-label">🎯 第 ${state.mission_num} 轮任务结果</div>`;
         html += `<div style="font-size:0.85rem;color:var(--gold-light);">成功 ${succ} 票 / 失败 ${fail} 票</div>`;
     }
 
@@ -739,7 +766,10 @@ function updateLog(state) {
 
     if (!html) html = '<div style="text-align:center;color:rgba(255,255,255,0.2);padding:60px 0;">等待游戏开始...</div>';
     panel.innerHTML = html;
-    panel.scrollTop = panel.scrollHeight;
+    // 智能滚动: 仅在用户已接近底部时才自动滚到底部
+    if (panel.scrollHeight - panel.scrollTop - panel.clientHeight < 80) {
+        panel.scrollTop = panel.scrollHeight;
+    }
 }
 
 function showActions(state) {
@@ -761,6 +791,20 @@ function showActions(state) {
                 <i class="bi bi-send-fill me-1"></i>发言
             </button>
         </div>`;
+    } else if (type === 'adjust_team') {
+        const size = state.current_mission_size || 3;
+        const alive = state.alive_players || [];
+        const current = state.proposed_team || [];
+        html += `<div style="margin-bottom:8px;">发言结束。你可以<span style="color:var(--gold-light);">调整队伍</span>（需${size}人）</div>`;
+        html += `<div style="margin-bottom:4px;color:rgba(255,255,255,0.4);font-size:0.8rem;">当前队伍: ${current.join(', ')}</div>`;
+        html += '<div class="team-select-grid" id="team-grid">';
+        alive.forEach(p => {
+            const sel = current.includes(p) ? ' selected' : '';
+            html += `<button class="team-check-btn${sel}" data-player="${p}" onclick="toggleTeamBtn(this)">${p}</button>`;
+        });
+        html += '</div>';
+        html += `<div style="margin-top:8px;"><small style="color:rgba(255,255,255,0.3);" id="team-count">已选: ${current.length}/${size}</small></div>`;
+        html += `<button class="btn btn-action btn-gold-custom mt-2" id="btn-confirm-team" onclick="confirmAdjust(${size})">✅ 确认队伍</button>`;
     } else if (type === 'vote_team') {
         html += `<div style="margin-bottom:8px;color:rgba(255,255,255,0.6);">对队伍 <span style="color:var(--gold-light);font-weight:700;">${(state.proposed_team||[]).join(', ')}</span> 投票</div>`;
         html += `<button class="btn btn-action btn-success-custom me-2" onclick="submitAction('vote_team',{vote:'Y'})">
@@ -822,6 +866,11 @@ function confirmTeam(size) {
     const selected = Array.from(document.querySelectorAll('.team-check-btn.selected')).map(b => b.dataset.player);
     if (selected.length !== size) return;
     submitAction('propose_team', {team: selected});
+}
+
+function confirmAdjust(size) {
+    const selected = Array.from(document.querySelectorAll('.team-check-btn.selected')).map(b => b.dataset.player);
+    submitAction('adjust_team', {team: selected});
 }
 
 async function submitAction(type, data) {
